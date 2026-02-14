@@ -4,8 +4,8 @@ VitalFitness es una app móvil diseñada para el seguimiento de rutinas de entre
 -- Integrantes --
 * Camilo Andres Marquez
 * Omar Jhasel Castro Moreno
-* Sneider Bautista
-* 4 integrante
+* Luis Sneider Bautista
+* Juan David Villalobos
 
 -- Color --
 * Naranja
