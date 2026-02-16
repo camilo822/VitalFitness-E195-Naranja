@@ -1,6 +1,10 @@
 # VitalFitness-E195-Naranja
 VitalFitness es una app móvil diseñada para el seguimiento de rutinas de entrenamiento
 
+-- lenguaje de programacion --
+* Dart
+* Flutter
+
 -- Integrantes --
 * Camilo Andres Marquez
 * Omar Jhasel Castro Moreno
