@@ -1,65 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
-
-// ─── Modelo de rutina (mock data) ─────────────────────────────────────────────
-class _Rutina {
-  final String nombre;
-  final String categoria;
-  final List<String> dias;       // e.g. ['L', 'M', 'X', 'J', 'V', 'S', 'D']
-  final List<bool> diasActivos;  // cuáles están marcados
-  final int ejercicios;
-  final int minutos;
-  final String ultimaVez;
-  final bool activa;
-  final Color accentColor;
-
-  const _Rutina({
-    required this.nombre,
-    required this.categoria,
-    required this.dias,
-    required this.diasActivos,
-    required this.ejercicios,
-    required this.minutos,
-    required this.ultimaVez,
-    this.activa = false,
-    this.accentColor = AppColors.cyberLime,
-  });
-}
-
-const _rutinasEjemplo = [
-  _Rutina(
-    nombre: 'Rutina Fuerza Semana 1',
-    categoria: 'Fuerza',
-    dias: ['L', 'M', 'X', 'J', 'V', 'S', 'D'],
-    diasActivos: [true, false, true, false, true, false, false],
-    ejercicios: 6,
-    minutos: 65,
-    ultimaVez: 'Hace 1 día',
-    activa: true,
-    accentColor: AppColors.cyberLime,
-  ),
-  _Rutina(
-    nombre: 'Full Body Express',
-    categoria: 'Resistencia',
-    dias: ['L', 'M', 'X', 'J', 'V', 'S', 'D'],
-    diasActivos: [true, true, true, true, true, false, false],
-    ejercicios: 8,
-    minutos: 45,
-    ultimaVez: 'Hace 3 días',
-    accentColor: Color(0xFF00D4FF),
-  ),
-  _Rutina(
-    nombre: 'Volumen Brazos',
-    categoria: 'Hipertrofia',
-    dias: ['L', 'M', 'X', 'J', 'V', 'S', 'D'],
-    diasActivos: [false, true, false, true, false, true, false],
-    ejercicios: 5,
-    minutos: 40,
-    ultimaVez: 'Hace 5 días',
-    accentColor: Color(0xFFFF9500),
-  ),
-];
+import '../../data/services/rutina_service.dart';
 
 // ─── Rutinas Creadas Screen ────────────────────────────────────────────────────
 class RutinasCreatedasScreen extends StatelessWidget {
@@ -67,26 +9,72 @@ class RutinasCreatedasScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (_rutinasEjemplo.isEmpty) {
-      return _EmptyState(
-        onCrear: () => Navigator.pushNamed(context, '/crear-rutina'),
-      );
-    }
+    return StreamBuilder<List<RutinaModel>>(
+      stream: RutinaService.rutinasStream(),
+      builder: (context, snapshot) {
+        // ── Loading ──────────────────────────────────────────────────────────
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: AppColors.cyberLime,
+              strokeWidth: 2,
+            ),
+          );
+        }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
-      physics: const BouncingScrollPhysics(),
-      children: [
-        // ── Stats row ─────────────────────────────────────────────────────
-        _StatsRow(
-          total: _rutinasEjemplo.length,
-          activas: _rutinasEjemplo.where((r) => r.activa).length,
-          estaSemana: 4,
-        ),
-        const SizedBox(height: 16),
-        // ── Tarjetas ──────────────────────────────────────────────────────
-        ..._rutinasEjemplo.map((r) => _RutinaCard(rutina: r)),
-      ],
+        // ── Error ────────────────────────────────────────────────────────────
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.wifi_off_rounded,
+                    color: AppColors.steamGray.withOpacity(0.3), size: 48),
+                const SizedBox(height: 12),
+                Text(
+                  'Error al cargar rutinas',
+                  style: TextStyle(
+                      color: AppColors.steamGray.withOpacity(0.5),
+                      fontSize: 14),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final rutinas = snapshot.data ?? [];
+
+        // ── Estado vacío ─────────────────────────────────────────────────────
+        if (rutinas.isEmpty) {
+          return _EmptyState(
+            onCrear: () => Navigator.pushNamed(context, '/crear-rutina'),
+          );
+        }
+
+        // ── Lista ────────────────────────────────────────────────────────────
+        final activas = rutinas.where((r) => r.activa).length;
+        // Cuenta solo las usadas esta semana (aproximación: activas recientes)
+        final estaSemana = rutinas
+            .where((r) =>
+                DateTime.now().difference(r.creadaEn).inDays < 7)
+            .length;
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
+          physics: const BouncingScrollPhysics(),
+          children: [
+            // ── Stats row ───────────────────────────────────────────────────
+            _StatsRow(
+              total: rutinas.length,
+              activas: activas,
+              estaSemana: estaSemana,
+            ),
+            const SizedBox(height: 16),
+            // ── Tarjetas ────────────────────────────────────────────────────
+            ...rutinas.map((r) => _RutinaCard(rutina: r)),
+          ],
+        );
+      },
     );
   }
 }
@@ -107,13 +95,19 @@ class _StatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _StatBadge(value: '$total', label: 'Total rutinas',
+        _StatBadge(
+            value: '$total',
+            label: 'Total rutinas',
             color: AppColors.cyberLime),
         const SizedBox(width: 10),
-        _StatBadge(value: '$activas', label: 'Activas',
+        _StatBadge(
+            value: '$activas',
+            label: 'Activas',
             color: AppColors.electricViolet),
         const SizedBox(width: 10),
-        _StatBadge(value: '$estaSemana', label: 'Esta semana',
+        _StatBadge(
+            value: '$estaSemana',
+            label: 'Esta semana',
             color: const Color(0xFF00D4FF)),
       ],
     );
@@ -172,7 +166,7 @@ class _StatBadge extends StatelessWidget {
 
 // ─── Rutina Card ──────────────────────────────────────────────────────────────
 class _RutinaCard extends StatefulWidget {
-  final _Rutina rutina;
+  final RutinaModel rutina;
 
   const _RutinaCard({required this.rutina});
 
@@ -200,12 +194,123 @@ class _RutinaCardState extends State<_RutinaCard>
     super.dispose();
   }
 
+  Color get _accentColor {
+    switch (widget.rutina.categoria.toLowerCase()) {
+      case 'hipertrofia':
+        return AppColors.cyberLime;
+      case 'resistencia':
+        return const Color(0xFFFF9500);
+      case 'volumen':
+        return const Color(0xFF00D4FF);
+      default:
+        return AppColors.electricViolet; // fuerza
+    }
+  }
+
+  String _ultimaVez() {
+    final diff = DateTime.now().difference(widget.rutina.creadaEn);
+    if (diff.inDays == 0) return 'Hoy';
+    if (diff.inDays == 1) return 'Hace 1 día';
+    if (diff.inDays < 7) return 'Hace ${diff.inDays} días';
+    return 'Hace ${(diff.inDays / 7).floor()} semana(s)';
+  }
+
+  void _showOptions(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.steamGray.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Activar / Desactivar
+            ListTile(
+              leading: Icon(
+                widget.rutina.activa
+                    ? Icons.pause_circle_outline_rounded
+                    : Icons.play_circle_outline_rounded,
+                color: AppColors.cyberLime,
+              ),
+              title: Text(
+                widget.rutina.activa ? 'Desactivar rutina' : 'Marcar como activa',
+                style: const TextStyle(color: AppColors.steamGray),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                await RutinaService.toggleActiva(
+                    widget.rutina.id, !widget.rutina.activa);
+              },
+            ),
+            // Eliminar
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded,
+                  color: Colors.redAccent),
+              title: const Text('Eliminar rutina',
+                  style: TextStyle(color: Colors.redAccent)),
+              onTap: () async {
+                Navigator.pop(context);
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    backgroundColor: AppColors.surface,
+                    title: const Text('Eliminar rutina',
+                        style: TextStyle(color: AppColors.steamGray)),
+                    content: Text(
+                      '¿Eliminar "${widget.rutina.nombre}"? Esta acción no se puede deshacer.',
+                      style: TextStyle(
+                          color: AppColors.steamGray.withOpacity(0.6)),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancelar',
+                            style: TextStyle(color: AppColors.steamGray)),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Eliminar',
+                            style: TextStyle(color: Colors.redAccent)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await RutinaService.eliminarRutina(widget.rutina.id);
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final r = widget.rutina;
+    final accent = _accentColor;
+    const dias = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
     return GestureDetector(
-      onTapDown: (_) { _ctrl.forward(); HapticFeedback.lightImpact(); },
+      onTapDown: (_) {
+        _ctrl.forward();
+        HapticFeedback.lightImpact();
+      },
       onTapUp: (_) => _ctrl.reverse(),
       onTapCancel: () => _ctrl.reverse(),
       child: ScaleTransition(
@@ -218,14 +323,14 @@ class _RutinaCardState extends State<_RutinaCard>
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: r.activa
-                  ? r.accentColor.withOpacity(0.4)
+                  ? accent.withOpacity(0.4)
                   : AppColors.steamGray.withOpacity(0.07),
               width: r.activa ? 1.5 : 1,
             ),
             boxShadow: r.activa
                 ? [
                     BoxShadow(
-                      color: r.accentColor.withOpacity(0.12),
+                      color: accent.withOpacity(0.12),
                       blurRadius: 20,
                       spreadRadius: 1,
                     ),
@@ -235,7 +340,7 @@ class _RutinaCardState extends State<_RutinaCard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Top row ───────────────────────────────────────────────
+              // ── Top row ────────────────────────────────────────────────
               Row(
                 children: [
                   if (r.activa)
@@ -247,7 +352,6 @@ class _RutinaCardState extends State<_RutinaCard>
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color: AppColors.cyberLime.withOpacity(0.4),
-                          width: 1,
                         ),
                       ),
                       child: Row(
@@ -280,22 +384,45 @@ class _RutinaCardState extends State<_RutinaCard>
                         ],
                       ),
                     ),
-                  const Spacer(),
-                  // Menú opciones
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(9),
-                      border: Border.all(
-                        color: AppColors.steamGray.withOpacity(0.08),
+                  if (r.esPredeterminada)
+                    Container(
+                      margin: EdgeInsets.only(left: r.activa ? 8 : 0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border:
+                            Border.all(color: accent.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        'PREDETERMINADA',
+                        style: TextStyle(
+                          color: accent,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
                       ),
                     ),
-                    child: Icon(
-                      Icons.more_vert_rounded,
-                      color: AppColors.steamGray.withOpacity(0.4),
-                      size: 16,
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => _showOptions(context),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(
+                          color: AppColors.steamGray.withOpacity(0.08),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.more_vert_rounded,
+                        color: AppColors.steamGray.withOpacity(0.4),
+                        size: 16,
+                      ),
                     ),
                   ),
                 ],
@@ -313,9 +440,9 @@ class _RutinaCardState extends State<_RutinaCard>
               ),
               const SizedBox(height: 2),
               Text(
-                r.categoria,
+                r.categoria[0].toUpperCase() + r.categoria.substring(1),
                 style: TextStyle(
-                  color: r.accentColor,
+                  color: accent,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.3,
@@ -340,20 +467,20 @@ class _RutinaCardState extends State<_RutinaCard>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: activo
-                            ? r.accentColor.withOpacity(0.2)
+                            ? accent.withOpacity(0.2)
                             : AppColors.surfaceLight,
                         border: Border.all(
                           color: activo
-                              ? r.accentColor.withOpacity(0.6)
+                              ? accent.withOpacity(0.6)
                               : AppColors.steamGray.withOpacity(0.1),
                         ),
                       ),
                       child: Center(
                         child: Text(
-                          r.dias[i],
+                          dias[i],
                           style: TextStyle(
                             color: activo
-                                ? r.accentColor
+                                ? accent
                                 : AppColors.steamGray.withOpacity(0.3),
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
@@ -370,7 +497,7 @@ class _RutinaCardState extends State<_RutinaCard>
                 children: [
                   _InfoChip(
                     icon: Icons.fitness_center_rounded,
-                    label: '${r.ejercicios} ejercicios',
+                    label: '${r.ejercicios.length} ejercicios',
                     color: AppColors.steamGray.withOpacity(0.4),
                   ),
                   const SizedBox(width: 12),
@@ -382,22 +509,21 @@ class _RutinaCardState extends State<_RutinaCard>
                   const SizedBox(width: 12),
                   _InfoChip(
                     icon: Icons.history_rounded,
-                    label: r.ultimaVez,
+                    label: _ultimaVez(),
                     color: AppColors.steamGray.withOpacity(0.4),
                   ),
                   const Spacer(),
-                  // Botón iniciar
                   GestureDetector(
                     onTap: () => HapticFeedback.mediumImpact(),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 9),
                       decoration: BoxDecoration(
-                        color: r.accentColor,
+                        color: accent,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: r.accentColor.withOpacity(0.35),
+                            color: accent.withOpacity(0.35),
                             blurRadius: 12,
                             offset: const Offset(0, 3),
                           ),
@@ -504,10 +630,11 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Crea tu primera rutina personalizada',
+              'Crea tu primera rutina personalizada\no elige una predeterminada',
               style: TextStyle(
                 color: AppColors.steamGray.withOpacity(0.4),
                 fontSize: 13,
+                height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),

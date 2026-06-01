@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/services/rutina_service.dart';
 
 // ─── Modelos ──────────────────────────────────────────────────────────────────
 class _Objetivo {
@@ -96,8 +97,9 @@ class _CrearRutinaScreenState extends State<CrearRutinaScreen>
     setState(() => _diasSeleccionados[i] = !_diasSeleccionados[i]);
   }
 
-  void _guardarRutina() {
-    if (_nombreCtrl.text.trim().isEmpty) {
+  Future<void> _guardarRutina() async {
+    final nombre = _nombreCtrl.text.trim();
+    if (nombre.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: Colors.redAccent,
@@ -109,21 +111,53 @@ class _CrearRutinaScreenState extends State<CrearRutinaScreen>
       );
       return;
     }
+
     HapticFeedback.mediumImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: AppColors.cyberLime,
-        content: Text(
-          '✅ Rutina "${_nombreCtrl.text.trim()}" guardada',
-          style: const TextStyle(
-              color: AppColors.carbonBlack, fontWeight: FontWeight.bold),
+
+    // Calcular minutos estimados según días y objetivo
+    final diasCount = _diasSeleccionados.where((d) => d).length;
+    final minutos = _objetivoSeleccionado == 'fuerza'
+        ? 70
+        : _objetivoSeleccionado == 'resistencia'
+            ? 50
+            : 60;
+
+    try {
+      await RutinaService.crearRutina(
+        nombre: nombre,
+        categoria: _objetivoSeleccionado,
+        diasActivos: List<bool>.from(_diasSeleccionados),
+        ejercicios: List<String>.from(_ejerciciosAgregados),
+        minutos: diasCount > 0 ? minutos : 45,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.cyberLime,
+          content: Text(
+            '✅ Rutina "$nombre" guardada',
+            style: const TextStyle(
+                color: AppColors.carbonBlack, fontWeight: FontWeight.bold),
+          ),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
         ),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-    Navigator.pop(context);
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.redAccent,
+          content: Text('Error al guardar: $e'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   @override

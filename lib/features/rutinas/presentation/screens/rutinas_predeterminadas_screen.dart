@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/services/rutina_service.dart';
 
 // ─── Modelo ───────────────────────────────────────────────────────────────────
 class _ProgramaData {
@@ -465,18 +466,8 @@ class _ProgramaCardState extends State<_ProgramaCard>
                   ],
                 ),
               ),
-              // ── Flecha ────────────────────────────────────────────────
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: d.color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: d.color.withOpacity(0.25)),
-                ),
-                child: Icon(Icons.arrow_forward_ios_rounded,
-                    color: d.color, size: 13),
-              ),
+              // ── Flecha / Usar ──────────────────────────────────────────
+              _UsarProgramaButton(data: d),
             ],
           ),
         ),
@@ -548,6 +539,104 @@ class _IntensityBar extends StatelessWidget {
           ),
         );
       }),
+    );
+  }
+}
+
+// ─── Botón "Usar programa" ────────────────────────────────────────────────────
+class _UsarProgramaButton extends StatefulWidget {
+  final _ProgramaData data;
+
+  const _UsarProgramaButton({required this.data});
+
+  @override
+  State<_UsarProgramaButton> createState() => _UsarProgramaButtonState();
+}
+
+class _UsarProgramaButtonState extends State<_UsarProgramaButton> {
+  bool _loading = false;
+
+  /// Mapea el tag/nivel del programa a un string de categoría válido
+  String _mapCategoria() {
+    final nombre = widget.data.nombre.toLowerCase();
+    if (nombre.contains('ppl') ||
+        nombre.contains('phul') ||
+        nombre.contains('fuerza') ||
+        nombre.contains('arnold')) {
+      return 'fuerza';
+    }
+    if (nombre.contains('upper') ||
+        nombre.contains('lower') ||
+        nombre.contains('full body')) {
+      return 'hipertrofia';
+    }
+    return 'resistencia';
+  }
+
+  Future<void> _usar(BuildContext context) async {
+    setState(() => _loading = true);
+    try {
+      await RutinaService.agregarPredeterminada(
+        nombre: widget.data.nombre,
+        categoria: _mapCategoria(),
+        diasSemana: widget.data.diasSemana,
+        minutos: widget.data.minutos,
+      );
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: widget.data.color,
+          content: Text(
+            '✅ "${widget.data.nombre}" añadida a tus rutinas',
+            style: const TextStyle(
+                color: AppColors.carbonBlack, fontWeight: FontWeight.bold),
+          ),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.redAccent,
+          content: Text('Error: $e'),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.data.color;
+    return GestureDetector(
+      onTap: _loading ? null : () => _usar(context),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.25)),
+        ),
+        child: _loading
+            ? Padding(
+                padding: const EdgeInsets.all(8),
+                child: CircularProgressIndicator(
+                  color: color,
+                  strokeWidth: 2,
+                ),
+              )
+            : Icon(Icons.add_rounded, color: color, size: 18),
+      ),
     );
   }
 }
