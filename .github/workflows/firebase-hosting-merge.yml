@@ -1,0 +1,28 @@
+name: Deploy to Firebase Hosting on merge
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 🛠️ INSTALAR SDK DE FLUTTER EN LA NUBE
+      # Este paso es obligatorio para que GitHub Actions pueda compilar tu app web
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      # EJECUTAR COMPILACIÓN DE PRODUCCIÓN
+      # Aquí se descargan los paquetes y se genera la carpeta build/web
+      - run: flutter pub get && flutter build web --release
+
+      # DESPLIEGUE AUTOMÁTICO A FIREBASE
+      # Usa los secretos seguros creados por la terminal para subir los archivos
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_VITALFITNESS_BC7E7 }}
+          projectId: vitalfitness-bc7e7
