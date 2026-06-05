@@ -5,13 +5,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 class RutinaModel {
   final String id;
   final String nombre;
-  final String categoria;       // objetivo: fuerza | hipertrofia | resistencia
+  final String categoria;       // fuerza | hipertrofia | resistencia
   final List<bool> diasActivos; // 7 elementos, L-D
   final List<String> ejercicios;
   final int minutos;
   final bool activa;
   final bool esPredeterminada;
   final DateTime creadaEn;
+  final String uid;
 
   const RutinaModel({
     required this.id,
@@ -23,11 +24,11 @@ class RutinaModel {
     required this.activa,
     required this.esPredeterminada,
     required this.creadaEn,
+    required this.uid,
   });
 
   int get diasCount => diasActivos.where((d) => d).length;
 
-  // ── Firestore → Model ──────────────────────────────────────────────────────
   factory RutinaModel.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return RutinaModel(
@@ -45,11 +46,11 @@ class RutinaModel {
       activa: data['activa'] as bool? ?? false,
       esPredeterminada: data['esPredeterminada'] as bool? ?? false,
       creadaEn: (data['creadaEn'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      uid: data['uid'] as String? ?? '',
     );
   }
 
-  // ── Model → Firestore ──────────────────────────────────────────────────────
-  Map<String, dynamic> toMap() => {
+  Map<String, dynamic> toMap(String uid) => {
         'nombre': nombre,
         'categoria': categoria,
         'diasActivos': diasActivos,
@@ -58,7 +59,7 @@ class RutinaModel {
         'activa': activa,
         'esPredeterminada': esPredeterminada,
         'creadaEn': Timestamp.fromDate(creadaEn),
-        'uid': FirebaseAuth.instance.currentUser?.uid ?? '',
+        'uid': uid,
       };
 }
 
@@ -67,19 +68,26 @@ class RutinaService {
   static final _auth = FirebaseAuth.instance;
   static final _db = FirebaseFirestore.instance;
 
-  /// Referencia a la subcolección rutinas del usuario actual
-  static CollectionReference<Map<String, dynamic>> get _col {
+  // Colección raíz — cada documento tiene campo 'uid' del dueño
+  static CollectionReference<Map<String, dynamic>> get _col =>
+      _db.collection('rutinas');
+
+  static String get _uid {
     final uid = _auth.currentUser?.uid;
     if (uid == null) throw Exception('Usuario no autenticado');
-    return _db.collection('usuarios').doc(uid).collection('rutinas');
+    return uid;
   }
 
-  // ── Stream en tiempo real ──────────────────────────────────────────────────
+  // ── Stream: solo rutinas del usuario actual ────────────────────────────────
   static Stream<List<RutinaModel>> rutinasStream() {
     return _col
-        .orderBy('creadaEn', descending: true)
+        .where('uid', isEqualTo: _uid)
         .snapshots()
-        .map((snap) => snap.docs.map(RutinaModel.fromDoc).toList());
+        .map((snap) {
+          final lista = snap.docs.map(RutinaModel.fromDoc).toList();
+          lista.sort((a, b) => b.creadaEn.compareTo(a.creadaEn));
+          return lista;
+        });
   }
 
   // ── Crear rutina personalizada ─────────────────────────────────────────────
@@ -90,6 +98,7 @@ class RutinaService {
     required List<String> ejercicios,
     int minutos = 45,
   }) async {
+    final uid = _uid;
     final rutina = RutinaModel(
       id: '',
       nombre: nombre,
@@ -100,18 +109,19 @@ class RutinaService {
       activa: false,
       esPredeterminada: false,
       creadaEn: DateTime.now(),
+      uid: uid,
     );
-    await _col.add(rutina.toMap());
+    await _col.add(rutina.toMap(uid));
   }
 
-  // ── Agregar rutina predeterminada al usuario ───────────────────────────────
+  // ── Agregar rutina predeterminada ──────────────────────────────────────────
   static Future<void> agregarPredeterminada({
     required String nombre,
     required String categoria,
     required int diasSemana,
     required int minutos,
   }) async {
-    // Genera diasActivos con los primeros N días de la semana activos
+    final uid = _uid;
     final dias = List<bool>.generate(7, (i) => i < diasSemana);
     final rutina = RutinaModel(
       id: '',
@@ -123,18 +133,21 @@ class RutinaService {
       activa: false,
       esPredeterminada: true,
       creadaEn: DateTime.now(),
+      uid: uid,
     );
-    await _col.add(rutina.toMap());
+    await _col.add(rutina.toMap(uid));
   }
 
   // ── Eliminar rutina ────────────────────────────────────────────────────────
   static Future<void> eliminarRutina(String id) => _col.doc(id).delete();
 
-  // ── Marcar como activa (desactiva las demás) ───────────────────────────────
+  // ── Activar/desactivar (desactiva las demás del usuario) ──────────────────
   static Future<void> toggleActiva(String id, bool activa) async {
     if (activa) {
-      // Desactivar todas primero
-      final snap = await _col.where('activa', isEqualTo: true).get();
+      final snap = await _col
+          .where('uid', isEqualTo: _uid)
+          .where('activa', isEqualTo: true)
+          .get();
       final batch = _db.batch();
       for (final doc in snap.docs) {
         batch.update(doc.reference, {'activa': false});

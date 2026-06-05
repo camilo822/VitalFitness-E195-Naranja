@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/data/services/auth_service.dart';
 
 // ─── Modelo ───────────────────────────────────────────────────────────────────
 class _EjercicioAdmin {
@@ -98,6 +99,49 @@ class _AdminEjerciciosScreenState extends State<AdminEjerciciosScreen>
     return lista;
   }
 
+  Future<void> _cerrarSesion() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
+            SizedBox(width: 10),
+            Text('Cerrar sesión',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          ],
+        ),
+        content: const Text(
+          '¿Estás seguro de que deseas cerrar sesión?',
+          style: TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cerrar sesión', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmar == true && mounted) {
+      await AuthService().logout();
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+      }
+    }
+  }
+
   void _showAddDialog() {
     _showEjercicioDialog(context, null);
   }
@@ -150,6 +194,7 @@ class _AdminEjerciciosScreenState extends State<AdminEjerciciosScreen>
                 title: 'Gestión de Ejercicios',
                 subtitle: '${lista.length} EJERCICIOS EN TOTAL',
                 onAdd: _showAddDialog,
+                onLogout: _cerrarSesion,
               ),
               // ── Search ─────────────────────────────────────────────────
               Padding(
@@ -346,11 +391,13 @@ class _AdminTopBar extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onAdd;
+  final VoidCallback? onLogout;
 
   const _AdminTopBar({
     required this.title,
     required this.subtitle,
     required this.onAdd,
+    this.onLogout,
   });
 
   @override
@@ -415,6 +462,21 @@ class _AdminTopBar extends StatelessWidget {
               ),
               child: const Icon(Icons.fitness_center_rounded,
                   color: AppColors.cyberLime, size: 20),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Botón cerrar sesión
+          GestureDetector(
+            onTap: onLogout,
+            child: Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.redAccent.withOpacity(0.4)),
+              ),
+              child: const Icon(Icons.logout_rounded,
+                  color: Colors.redAccent, size: 20),
             ),
           ),
         ],

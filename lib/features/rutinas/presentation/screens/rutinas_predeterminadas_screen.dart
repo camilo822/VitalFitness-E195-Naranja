@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../data/services/rutina_service.dart';
+//import '../../data/services/rutina_service.dart';
+import 'detalle_rutina_predeterminada_screen.dart';
 
 // ─── Modelo ───────────────────────────────────────────────────────────────────
 class _ProgramaData {
@@ -346,13 +347,46 @@ class _ProgramaCardState extends State<_ProgramaCard>
     super.dispose();
   }
 
+  String _mapCategoria() {
+    final nombre = widget.data.nombre.toLowerCase();
+    if (nombre.contains('ppl') ||
+        nombre.contains('arnold') ||
+        nombre.contains('phul')) return 'fuerza';
+    if (nombre.contains('full body')) return 'resistencia';
+    return 'hipertrofia';
+  }
+
+  void _abrirDetalle(BuildContext context) {
+    final d = widget.data;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetalleRutinaPredeterminadaScreen(
+          nombre: d.nombre,
+          descripcion: d.descripcion,
+          tag: d.tag,
+          diasSemana: d.diasSemana,
+          nivel: d.nivel,
+          minutos: d.minutos,
+          intensidad: d.intensidad,
+          color: d.color,
+          icon: d.icon,
+          categoria: _mapCategoria(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final d = widget.data;
 
     return GestureDetector(
       onTapDown: (_) { _ctrl.forward(); HapticFeedback.lightImpact(); },
-      onTapUp: (_) => _ctrl.reverse(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        _abrirDetalle(context);
+      },
       onTapCancel: () => _ctrl.reverse(),
       child: ScaleTransition(
         scale: _scale,
@@ -554,72 +588,42 @@ class _UsarProgramaButton extends StatefulWidget {
 }
 
 class _UsarProgramaButtonState extends State<_UsarProgramaButton> {
-  bool _loading = false;
-
-  /// Mapea el tag/nivel del programa a un string de categoría válido
+  /// Mapea el nombre del programa a una categoría válida
   String _mapCategoria() {
     final nombre = widget.data.nombre.toLowerCase();
     if (nombre.contains('ppl') ||
         nombre.contains('phul') ||
-        nombre.contains('fuerza') ||
-        nombre.contains('arnold')) {
-      return 'fuerza';
-    }
-    if (nombre.contains('upper') ||
-        nombre.contains('lower') ||
-        nombre.contains('full body')) {
-      return 'hipertrofia';
-    }
-    return 'resistencia';
-  }
-
-  Future<void> _usar(BuildContext context) async {
-    setState(() => _loading = true);
-    try {
-      await RutinaService.agregarPredeterminada(
-        nombre: widget.data.nombre,
-        categoria: _mapCategoria(),
-        diasSemana: widget.data.diasSemana,
-        minutos: widget.data.minutos,
-      );
-
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: widget.data.color,
-          content: Text(
-            '✅ "${widget.data.nombre}" añadida a tus rutinas',
-            style: const TextStyle(
-                color: AppColors.carbonBlack, fontWeight: FontWeight.bold),
-          ),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.redAccent,
-          content: Text('Error: $e'),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+        nombre.contains('arnold')) return 'fuerza';
+    if (nombre.contains('full body')) return 'resistencia';
+    return 'hipertrofia';
   }
 
   @override
   Widget build(BuildContext context) {
     final color = widget.data.color;
+    final d = widget.data;
     return GestureDetector(
-      onTap: _loading ? null : () => _usar(context),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DetalleRutinaPredeterminadaScreen(
+              nombre: d.nombre,
+              descripcion: d.descripcion,
+              tag: d.tag,
+              diasSemana: d.diasSemana,
+              nivel: d.nivel,
+              minutos: d.minutos,
+              intensidad: d.intensidad,
+              color: d.color,
+              icon: d.icon,
+              categoria: _mapCategoria(),
+            ),
+          ),
+        );
+      },
+      child: Container(
         width: 32,
         height: 32,
         decoration: BoxDecoration(
@@ -627,15 +631,7 @@ class _UsarProgramaButtonState extends State<_UsarProgramaButton> {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: color.withOpacity(0.25)),
         ),
-        child: _loading
-            ? Padding(
-                padding: const EdgeInsets.all(8),
-                child: CircularProgressIndicator(
-                  color: color,
-                  strokeWidth: 2,
-                ),
-              )
-            : Icon(Icons.add_rounded, color: color, size: 18),
+        child: Icon(Icons.arrow_forward_ios_rounded, color: color, size: 13),
       ),
     );
   }
