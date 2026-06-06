@@ -1,120 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/services/exercise_service.dart';
 import 'informacion_ejercicio_screen.dart';
-
-// ─── Modelo ───────────────────────────────────────────────────────────────────
-class EjercicioData {
-  final String nombre;
-  final String musculo;
-  final String nivel;
-  final List<String> etiquetas;
-  final Color color;
-  final String? imageUrl;
-
-  const EjercicioData({
-    required this.nombre,
-    required this.musculo,
-    required this.nivel,
-    required this.etiquetas,
-    required this.color,
-    this.imageUrl,
-  });
-}
-
-// Mock data por grupo muscular
-final _ejerciciosPorGrupo = <String, List<EjercicioData>>{
-  'pecho': [
-    EjercicioData(
-      nombre: 'Press de Banca Plano',
-      musculo: 'Pectoral Mayor',
-      nivel: 'INTERMEDIO',
-      etiquetas: ['Barra', 'Banco'],
-      color: AppColors.cyberLime,
-    ),
-    EjercicioData(
-      nombre: 'Aperturas con Mancuernas',
-      musculo: 'Pectoral Mayor',
-      nivel: 'PRINCIPIANTE',
-      etiquetas: ['Mancuernas', 'Aislamiento'],
-      color: const Color(0xFF00D4FF),
-    ),
-    EjercicioData(
-      nombre: 'Fondos en Paralelas',
-      musculo: 'Pectoral Inferior',
-      nivel: 'INTERMEDIO',
-      etiquetas: ['Peso Corporal', 'Compuesto'],
-      color: AppColors.electricViolet,
-    ),
-    EjercicioData(
-      nombre: 'Press Inclinado con Barra',
-      musculo: 'Pectoral Clavicular',
-      nivel: 'INTERMEDIO',
-      etiquetas: ['Barra', 'Banco Inclinado'],
-      color: AppColors.cyberLime,
-    ),
-    EjercicioData(
-      nombre: 'Crossover en Polea',
-      musculo: 'Pectoral Mayor',
-      nivel: 'PRINCIPIANTE',
-      etiquetas: ['Polea', 'Aislamiento'],
-      color: const Color(0xFFFF9500),
-    ),
-    EjercicioData(
-      nombre: 'Push-Up',
-      musculo: 'Pectoral Mayor',
-      nivel: 'PRINCIPIANTE',
-      etiquetas: ['Peso Corporal', 'Compuesto'],
-      color: const Color(0xFF00E676),
-    ),
-  ],
-  'espalda': [
-    EjercicioData(
-      nombre: 'Dominadas',
-      musculo: 'Dorsal Ancho',
-      nivel: 'INTERMEDIO',
-      etiquetas: ['Peso Corporal', 'Compuesto'],
-      color: const Color(0xFF00D4FF),
-    ),
-    EjercicioData(
-      nombre: 'Remo con Barra',
-      musculo: 'Trapecio Medio',
-      nivel: 'AVANZADO',
-      etiquetas: ['Barra', 'Compuesto'],
-      color: AppColors.electricViolet,
-    ),
-    EjercicioData(
-      nombre: 'Jalón al Pecho',
-      musculo: 'Dorsal Ancho',
-      nivel: 'PRINCIPIANTE',
-      etiquetas: ['Polea', 'Compuesto'],
-      color: AppColors.cyberLime,
-    ),
-  ],
-  'piernas': [
-    EjercicioData(
-      nombre: 'Sentadilla con Barra',
-      musculo: 'Cuádriceps',
-      nivel: 'INTERMEDIO',
-      etiquetas: ['Barra', 'Compuesto'],
-      color: AppColors.electricViolet,
-    ),
-    EjercicioData(
-      nombre: 'Peso Muerto Rumano',
-      musculo: 'Isquiotibiales',
-      nivel: 'AVANZADO',
-      etiquetas: ['Barra', 'Compuesto'],
-      color: AppColors.cyberLime,
-    ),
-    EjercicioData(
-      nombre: 'Prensa de Piernas',
-      musculo: 'Cuádriceps',
-      nivel: 'PRINCIPIANTE',
-      etiquetas: ['Máquina', 'Compuesto'],
-      color: const Color(0xFF00D4FF),
-    ),
-  ],
-};
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 class ListaEjerciciosScreen extends StatefulWidget {
@@ -142,7 +30,7 @@ class _ListaEjerciciosScreenState extends State<ListaEjerciciosScreen>
   late Animation<double> _fadeAnim;
 
   List<EjercicioData> get _ejercicios =>
-      _ejerciciosPorGrupo[widget.grupoId] ?? [];
+      ExerciseService.getByGroup(widget.grupoId);
 
   @override
   void initState() {
@@ -209,6 +97,7 @@ class _ListaEjerciciosScreenState extends State<ListaEjerciciosScreen>
                   itemBuilder: (context, i) =>
                       _EjercicioCard(
                     ejercicio: _ejercicios[i],
+                    groupColor: widget.color,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -297,10 +186,12 @@ class _ListaEjerciciosScreenState extends State<ListaEjerciciosScreen>
 // ─── Ejercicio Card ───────────────────────────────────────────────────────────
 class _EjercicioCard extends StatefulWidget {
   final EjercicioData ejercicio;
+  final Color groupColor;
   final VoidCallback onTap;
 
   const _EjercicioCard({
     required this.ejercicio,
+    required this.groupColor,
     required this.onTap,
   });
 
@@ -328,6 +219,9 @@ class _EjercicioCardState extends State<_EjercicioCard>
     super.dispose();
   }
 
+  Color get _cardColor => Color(
+      EjercicioData.colorForBodyPart(widget.ejercicio.musculos.toLowerCase()));
+
   Color get _nivelColor {
     switch (widget.ejercicio.nivel) {
       case 'PRINCIPIANTE':
@@ -342,6 +236,7 @@ class _EjercicioCardState extends State<_EjercicioCard>
   @override
   Widget build(BuildContext context) {
     final e = widget.ejercicio;
+    final color = _cardColor;
 
     return GestureDetector(
       onTapDown: (_) { _ctrl.forward(); HapticFeedback.lightImpact(); },
@@ -354,54 +249,31 @@ class _EjercicioCardState extends State<_EjercicioCard>
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: e.color.withOpacity(0.2)),
+            border: Border.all(color: color.withOpacity(0.2)),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
             child: Stack(
               children: [
-                // Imagen de fondo si existe
-                if (e.imageUrl != null)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 120,
-                    child: Image.network(
-                      e.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: e.color.withOpacity(0.05),
-                        child: Icon(
-                          Icons.fitness_center_rounded,
-                          color: e.color.withOpacity(0.2),
-                          size: 40,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 100,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            AppColors.surface,
-                            e.color.withOpacity(0.08),
-                          ],
-                        ),
-                      ),
+                // ── Imagen local con Image.asset ──────────────────────
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 120,
+                  child: Image.asset(
+                    e.imagenUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: color.withOpacity(0.05),
                       child: Icon(
                         Icons.fitness_center_rounded,
-                        color: e.color.withOpacity(0.15),
-                        size: 48,
+                        color: color.withOpacity(0.2),
+                        size: 40,
                       ),
                     ),
                   ),
+                ),
                 // Gradiente para legibilidad
                 Positioned.fill(
                   child: Container(
@@ -457,7 +329,7 @@ class _EjercicioCardState extends State<_EjercicioCard>
                       Row(
                         children: [
                           Icon(Icons.bolt_rounded,
-                              color: e.color, size: 13),
+                              color: color, size: 13),
                           const SizedBox(width: 4),
                           Text(
                             e.musculo,
@@ -471,7 +343,7 @@ class _EjercicioCardState extends State<_EjercicioCard>
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 6,
-                        children: e.etiquetas.map((tag) {
+                        children: [e.equipo].map((tag) {
                           return Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 9, vertical: 4),
@@ -505,13 +377,13 @@ class _EjercicioCardState extends State<_EjercicioCard>
                     height: 32,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: e.color.withOpacity(0.15),
+                      color: color.withOpacity(0.15),
                       border:
-                          Border.all(color: e.color.withOpacity(0.35)),
+                          Border.all(color: color.withOpacity(0.35)),
                     ),
                     child: Icon(
                       Icons.arrow_forward_ios_rounded,
-                      color: e.color,
+                      color: color,
                       size: 12,
                     ),
                   ),

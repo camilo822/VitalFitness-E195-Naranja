@@ -468,6 +468,10 @@ class ExerciseService {
     ],
   };
 
+  /// Acceso síncrono para uso directo en widgets (sin FutureBuilder)
+  static List<EjercicioData> getByGroup(String grupoId) =>
+      _db[grupoId.toLowerCase()] ?? [];
+
   Future<List<EjercicioData>> getEjerciciosPorGrupo(String grupoId) async {
     await Future.delayed(const Duration(milliseconds: 300));
     return _db[grupoId.toLowerCase()] ?? [];

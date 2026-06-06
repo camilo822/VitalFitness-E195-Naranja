@@ -7,16 +7,16 @@ import 'lista_ejercicios_screen.dart';
 class _GrupoMuscular {
   final String nombre;
   final int cantidad;
-  final IconData icon;
   final Color color;
   final String id;
+  final String imagePath;
 
   const _GrupoMuscular({
     required this.nombre,
     required this.cantidad,
-    required this.icon,
     required this.color,
     required this.id,
+    required this.imagePath,
   });
 }
 
@@ -25,57 +25,50 @@ const _grupos = [
     id: 'pecho',
     nombre: 'Pecho',
     cantidad: 18,
-    icon: Icons.sports_gymnastics_rounded,
     color: AppColors.cyberLime,
+    imagePath: 'assets/images/pecho.png',
   ),
   _GrupoMuscular(
     id: 'espalda',
     nombre: 'Espalda',
     cantidad: 22,
-    icon: Icons.accessibility_rounded,
     color: Color(0xFF00D4FF),
+    imagePath: 'assets/images/espalda.png',
   ),
   _GrupoMuscular(
     id: 'piernas',
     nombre: 'Piernas',
     cantidad: 31,
-    icon: Icons.directions_run_rounded,
     color: AppColors.electricViolet,
+    imagePath: 'assets/images/pierna.png',
   ),
   _GrupoMuscular(
     id: 'hombros',
     nombre: 'Hombros',
     cantidad: 14,
-    icon: Icons.sports_martial_arts_rounded,
     color: AppColors.cyberLime,
+    imagePath: 'assets/images/hombro.png',
   ),
   _GrupoMuscular(
     id: 'biceps',
     nombre: 'Bíceps',
     cantidad: 12,
-    icon: Icons.fitness_center_rounded,
     color: Color(0xFF00D4FF),
+    imagePath: 'assets/images/biceps.png',
   ),
   _GrupoMuscular(
     id: 'triceps',
     nombre: 'Tríceps',
     cantidad: 10,
-    icon: Icons.fitness_center_outlined,
     color: AppColors.electricViolet,
+    imagePath: 'assets/images/triceps.png',
   ),
   _GrupoMuscular(
     id: 'abdomen',
     nombre: 'Abdomen',
     cantidad: 16,
-    icon: Icons.crop_square_rounded,
     color: AppColors.cyberLime,
-  ),
-  _GrupoMuscular(
-    id: 'cardio',
-    nombre: 'Cardio',
-    cantidad: 15,
-    icon: Icons.favorite_rounded,
-    color: Colors.redAccent,
+    imagePath: 'assets/images/abdomen.png',
   ),
 ];
 
@@ -136,7 +129,7 @@ class _GuiaEjerciciosScreenState extends State<GuiaEjerciciosScreen>
                         crossAxisCount: 2,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        childAspectRatio: 1.35,
+                        childAspectRatio: 0.95,
                       ),
                       itemCount: _grupos.length,
                       itemBuilder: (context, i) =>
@@ -270,7 +263,6 @@ class _GrupoCardState extends State<_GrupoCard>
       child: ScaleTransition(
         scale: _scale,
         child: Container(
-          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(18),
@@ -284,69 +276,105 @@ class _GrupoCardState extends State<_GrupoCard>
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: g.color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(11),
-                      border:
-                          Border.all(color: g.color.withOpacity(0.2)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: g.color.withOpacity(0.25),
-                          blurRadius: 8,
-                        ),
-                      ],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // ── Imagen de fondo del grupo muscular ──
+                Positioned(
+                  right: -10,
+                  bottom: -10,
+                  child: Opacity(
+                    opacity: 0.18,
+                    child: Image.asset(
+                      g.imagePath,
+                      width: 110,
+                      height: 110,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                     ),
-                    child: Icon(g.icon, color: g.color, size: 19),
                   ),
-                  Icon(
+                ),
+                // ── Imagen centrada visible ──
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: g.color.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: g.color.withOpacity(0.15)),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(11),
+                      child: Image.asset(
+                        g.imagePath,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.fitness_center_rounded,
+                          color: g.color,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // ── Contenido texto ──
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        g.nombre,
+                        style: const TextStyle(
+                          color: AppColors.steamGray,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${g.cantidad} ejercicios',
+                        style: TextStyle(
+                          color: g.color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Barra inferior decorativa
+                      Container(
+                        height: 2,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(2),
+                          gradient: LinearGradient(
+                            colors: [
+                              g.color.withOpacity(0.6),
+                              g.color.withOpacity(0.1),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // ── Flecha esquina inferior derecha ──
+                Positioned(
+                  bottom: 14,
+                  right: 14,
+                  child: Icon(
                     Icons.arrow_forward_ios_rounded,
                     color: g.color.withOpacity(0.5),
                     size: 12,
                   ),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                g.nombre,
-                style: const TextStyle(
-                  color: AppColors.steamGray,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${g.cantidad} ejercicios',
-                style: TextStyle(
-                  color: g.color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Barra inferior decorativa
-              Container(
-                height: 2,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
-                  gradient: LinearGradient(
-                    colors: [
-                      g.color.withOpacity(0.6),
-                      g.color.withOpacity(0.1),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

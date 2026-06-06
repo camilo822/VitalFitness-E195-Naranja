@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
-import 'lista_ejercicios_screen.dart';
+import '../../data/services/exercise_service.dart';
 
 // ─── Información Ejercicio Screen ─────────────────────────────────────────────
 class InformacionEjercicioScreen extends StatefulWidget {
@@ -47,33 +47,13 @@ class _InformacionEjercicioScreenState
     }
   }
 
-  // Mock data para la descripción y músculos trabajados
-  static const _descripciones = {
-    'Press de Banca Plano':
-        'El press de banca plano es el ejercicio rey para el desarrollo del pecho. Acostado sobre un banco horizontal, bajas la barra hasta el pecho y la empujas hacia arriba. Activa el pectoral mayor, los deltoides anteriores y los tríceps de forma simultánea.',
-    'default':
-        'Este ejercicio es fundamental para el desarrollo muscular y la fuerza funcional. Ejecutado correctamente, trabaja los músculos objetivo de forma eficaz y segura. Mantén siempre la técnica adecuada para maximizar resultados y prevenir lesiones.',
-  };
-
-  static const _musculosSecundarios = {
-    'Press de Banca Plano': ['Deltoides Anterior', 'Tríceps', 'Serrato'],
-    'default': ['Músculos estabilizadores', 'Core'],
-  };
-
-  static const _instrucciones = [
-    'Colócate en la posición inicial con la espalda recta y los pies apoyados en el suelo.',
-    'Agarra el peso con un agarre firme, manteniendo las muñecas alineadas.',
-    'Inhala al bajar el peso de forma controlada hasta el punto de máxima contracción.',
-    'Exhala al empujar el peso hacia arriba en un movimiento fluido y explosivo.',
-    'Mantén la tensión muscular en todo momento. Evita bloquear las articulaciones.',
-  ];
+  Color get _cardColor => Color(
+      EjercicioData.colorForBodyPart(widget.ejercicio.musculos.toLowerCase()));
 
   @override
   Widget build(BuildContext context) {
     final e = widget.ejercicio;
-    final desc = _descripciones[e.nombre] ?? _descripciones['default']!;
-    final muscSecundarios =
-        _musculosSecundarios[e.nombre] ?? _musculosSecundarios['default']!;
+    final color = _cardColor;
 
     return Scaffold(
       backgroundColor: AppColors.carbonBlack,
@@ -82,37 +62,45 @@ class _InformacionEjercicioScreenState
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            // ── Hero imagen / fondo ───────────────────────────────────
+            // ── Hero imagen ────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Stack(
                 children: [
-                  // Imagen de fondo (placeholder si no hay url)
-                  Container(
-                    height: 260,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          e.color.withOpacity(0.15),
-                          AppColors.carbonBlack,
-                        ],
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.fitness_center_rounded,
-                        color: e.color.withOpacity(0.12),
-                        size: 120,
+                  // Imagen local del ejercicio
+                  SizedBox(
+                    height: 280,
+                    width: double.infinity,
+                    child: Image.asset(
+                      e.imagenUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 280,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              color.withOpacity(0.15),
+                              AppColors.carbonBlack,
+                            ],
+                          ),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.fitness_center_rounded,
+                            color: color.withOpacity(0.15),
+                            size: 120,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                  // Gradiente inferior
+                  // Gradiente inferior sobre la imagen
                   Positioned(
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    height: 100,
+                    height: 140,
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -121,6 +109,42 @@ class _InformacionEjercicioScreenState
                           colors: [
                             Colors.transparent,
                             AppColors.carbonBlack,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Gradiente lateral izquierdo para oscurecer bordes
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            AppColors.carbonBlack.withOpacity(0.3),
+                            Colors.transparent,
+                            Colors.transparent,
+                            AppColors.carbonBlack.withOpacity(0.3),
+                          ],
+                          stops: const [0, 0.15, 0.85, 1],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Línea inferior decorativa con color del grupo
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 2,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            color.withOpacity(0.7),
+                            Colors.transparent,
                           ],
                         ),
                       ),
@@ -150,24 +174,6 @@ class _InformacionEjercicioScreenState
                       ),
                     ),
                   ),
-                  // Línea inferior decorativa
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 2,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.transparent,
-                            e.color.withOpacity(0.6),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -193,12 +199,12 @@ class _InformacionEjercicioScreenState
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Icon(Icons.bolt_rounded, color: e.color, size: 16),
+                        Icon(Icons.bolt_rounded, color: color, size: 16),
                         const SizedBox(width: 4),
                         Text(
                           e.musculo,
                           style: TextStyle(
-                            color: e.color,
+                            color: color,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -207,141 +213,97 @@ class _InformacionEjercicioScreenState
                     ),
                     const SizedBox(height: 14),
 
-                    // Dificultad badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _nivelColor.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border:
-                            Border.all(color: _nivelColor.withOpacity(0.25)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.bar_chart_rounded,
-                              color: _nivelColor, size: 16),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Dificultad: ',
-                            style: TextStyle(
-                              color: AppColors.steamGray.withOpacity(0.6),
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            _capitalizar(e.nivel),
-                            style: TextStyle(
-                              color: _nivelColor,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-
-                    // ── Etiquetas ──────────────────────────────────────
-                    _SectionLabel(label: 'ETIQUETAS', color: e.color),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    // Fila nivel + equipo
+                    Row(
                       children: [
-                        ...e.etiquetas,
-                        ...muscSecundarios.take(2),
-                      ].map((tag) {
-                        return Container(
+                        // Dificultad badge
+                        Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(20),
+                            color: _nivelColor.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: AppColors.steamGray.withOpacity(0.12),
-                            ),
+                                color: _nivelColor.withOpacity(0.25)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Container(
-                                width: 5,
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: e.color,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
+                              Icon(Icons.bar_chart_rounded,
+                                  color: _nivelColor, size: 15),
+                              const SizedBox(width: 5),
                               Text(
-                                tag,
+                                _capitalizar(e.nivel),
                                 style: TextStyle(
-                                  color: AppColors.steamGray.withOpacity(0.75),
+                                  color: _nivelColor,
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ],
                           ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ── Descripción ────────────────────────────────────
-                    _SectionLabel(label: 'DESCRIPCIÓN', color: e.color),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.steamGray.withOpacity(0.07),
                         ),
-                      ),
-                      child: Text(
-                        desc,
-                        style: TextStyle(
-                          color: AppColors.steamGray.withOpacity(0.75),
-                          fontSize: 14,
-                          height: 1.65,
-                          letterSpacing: 0.2,
+                        const SizedBox(width: 10),
+                        // Equipo badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: AppColors.steamGray.withOpacity(0.1)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.fitness_center_rounded,
+                                  color: AppColors.steamGray.withOpacity(0.5),
+                                  size: 14),
+                              const SizedBox(width: 5),
+                              Text(
+                                e.equipo,
+                                style: TextStyle(
+                                  color: AppColors.steamGray.withOpacity(0.65),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 26),
 
                     // ── Qué trabaja ────────────────────────────────────
-                    _SectionLabel(label: 'QUÉ TRABAJA', color: e.color),
+                    _SectionLabel(label: 'QUÉ TRABAJA', color: color),
                     const SizedBox(height: 10),
                     _MuscleRow(
                       principal: e.musculo,
-                      secundarios: muscSecundarios,
-                      color: e.color,
+                      secundarios: e.musculosSecundarios,
+                      color: color,
                     ),
                     const SizedBox(height: 24),
 
                     // ── Instrucciones ──────────────────────────────────
-                    _SectionLabel(label: 'INSTRUCCIONES', color: e.color),
+                    _SectionLabel(label: 'INSTRUCCIONES', color: color),
                     const SizedBox(height: 10),
-                    ..._instrucciones.asMap().entries.map((entry) =>
+                    ...e.instrucciones.asMap().entries.map((entry) =>
                         _InstruccionItem(
                           numero: entry.key + 1,
                           texto: entry.value,
-                          color: e.color,
+                          color: color,
                         )),
                     const SizedBox(height: 28),
 
-                    // ── Botón agregar ──────────────────────────────────
+                    // ── Botón agregar a rutina ─────────────────────────
                     GestureDetector(
                       onTap: () {
                         HapticFeedback.mediumImpact();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            backgroundColor: e.color,
+                            backgroundColor: color,
                             content: Text(
                               '✅ ${e.nombre} agregado a tu rutina',
                               style: const TextStyle(
@@ -360,11 +322,11 @@ class _InformacionEjercicioScreenState
                         width: double.infinity,
                         height: 56,
                         decoration: BoxDecoration(
-                          color: e.color,
+                          color: color,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: e.color.withOpacity(0.4),
+                              color: color.withOpacity(0.4),
                               blurRadius: 20,
                               offset: const Offset(0, 6),
                             ),
@@ -459,10 +421,9 @@ class _MuscleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _MuscleItem(
-            label: principal, isPrincipal: true, color: color),
-        ...secundarios.map((s) =>
-            _MuscleItem(label: s, isPrincipal: false, color: color)),
+        _MuscleItem(label: principal, isPrincipal: true, color: color),
+        ...secundarios
+            .map((s) => _MuscleItem(label: s, isPrincipal: false, color: color)),
       ],
     );
   }
@@ -504,10 +465,7 @@ class _MuscleItem extends StatelessWidget {
                   ? color
                   : AppColors.steamGray.withOpacity(0.35),
               boxShadow: isPrincipal
-                  ? [
-                      BoxShadow(
-                          color: color.withOpacity(0.5), blurRadius: 6)
-                    ]
+                  ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 6)]
                   : null,
             ),
           ),
@@ -519,15 +477,13 @@ class _MuscleItem extends StatelessWidget {
                   ? AppColors.steamGray
                   : AppColors.steamGray.withOpacity(0.5),
               fontSize: 13,
-              fontWeight:
-                  isPrincipal ? FontWeight.w600 : FontWeight.w400,
+              fontWeight: isPrincipal ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
           const Spacer(),
           if (isPrincipal)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(5),
